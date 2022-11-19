@@ -22,10 +22,6 @@ async fn setup_tests() -> (
     ContractId,
     ContractId,
 ) {
-    // let num_wallets = 3;
-    // let coins_per_wallet = 1;
-    // let amount_per_coin = 1_000_000;
-
     let deployer = WalletUnlocked::new_random(None);
     let creator = WalletUnlocked::new_random(None);
     let receiver = WalletUnlocked::new_random(None);
