@@ -17,6 +17,17 @@ pub enum Status {
     Reverted: (),
 }
 
+impl core::ops::Eq for Status {
+    fn eq(self, other: Self) -> bool {
+        match (self, other) {
+            (Status::Uninitialized, Status::Uninitialized) => true,
+            (Status::Completed, Status::Completed) => true,
+            (Status::Reverted, Status::Reverted) => true,
+            _ => false,
+        }
+    }
+}
+
 pub struct EscrowInstance {
     creator: Identity,
     receiver: Identity,

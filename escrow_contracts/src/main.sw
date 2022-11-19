@@ -57,8 +57,8 @@ impl escrow for Contract {
     fn accept(escrow_id: u64) {
         let mut escrow_instance = storage.escrows.get(escrow_id);
 
+        require(escrow_instance.status == Status::Uninitialized, Error::IncorrectEscrowState);
 
-        // require(escrow_instance.status == Status::Uninitialized, Error::IncorrectEscrowState);
         require(escrow_instance.requested_asset_id == msg_asset_id(), Error::IncorrectAssetReceived);
 
         require(escrow_instance.requested_asset_amount <= msg_amount(), Error::InsufficientAmountReceived);
@@ -78,8 +78,8 @@ impl escrow for Contract {
     fn revert(escrow_id: u64) {
         let mut escrow_instance = storage.escrows.get(escrow_id);
 
+        require(escrow_instance.status == Status::Uninitialized, Error::IncorrectEscrowState);
 
-        // require(escrow_instance.status == Status::Uninitialized, Error::IncorrectEscrowState);
         require(escrow_instance.creator == msg_sender().unwrap(), Error::IncorrectReceiver);
         escrow_instance.status = Status::Reverted;
         storage.escrows.insert(escrow_id, escrow_instance);
