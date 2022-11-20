@@ -22,11 +22,14 @@ async fn setup_tests() -> (
     ContractId,
     ContractId,
 ) {
-    let deployer = WalletUnlocked::new_random(None);
-    let creator = WalletUnlocked::new_random(None);
-    let receiver = WalletUnlocked::new_random(None);
+    let wallets =
+        launch_custom_provider_and_get_wallets(WalletsConfig::default(), None, None).await;
 
-    let rng = &mut StdRng::seed_from_u64(2322u64);
+    let deployer: &WalletUnlocked = wallets.get(0).unwrap();
+    let creator: &WalletUnlocked = &wallets[1];
+    let receiver: &WalletUnlocked = &wallets[2];
+
+    let rng: &mut StdRng = &mut StdRng::seed_from_u64(2322u64);
     let salt: [u8; 32] = rng.gen();
 
     let creator_asset_id = Contract::deploy_with_parameters(
@@ -82,17 +85,17 @@ async fn setup_tests() -> (
 
     let deployer = WalletAndInstance {
         escrow: Escrow::new(escrow_contract_id.clone(), deployer.clone()),
-        wallet: deployer,
+        wallet: deployer.clone(),
     };
 
     let creator = WalletAndInstance {
         escrow: Escrow::new(escrow_contract_id.clone(), creator.clone()),
-        wallet: creator,
+        wallet: creator.clone(),
     };
 
     let receiver = WalletAndInstance {
         escrow: Escrow::new(escrow_contract_id.clone(), receiver.clone()),
-        wallet: receiver,
+        wallet: receiver.clone(),
     };
     println!("asset ids {:?} {:?}", creator_asset_id, receiver_asset_id);
 
@@ -104,4 +107,38 @@ async fn setup_tests() -> (
         creator_asset_id.into(),
         receiver_asset_id.into(),
     );
+}
+
+#[tokio::test]
+async fn can_initialize_escrow() {
+    let (_, creator, receiver, _, creator_asset_id, receiver_asset_id) = setup_tests().await;
+
+    let creator_asset_amount = 1_000;
+    let requested_amount = 1000;
+
+    let tx_params: TxParameters = TxParameters::new(None, Some(1_000_000), None);
+
+    let call_params = CallParameters::new(
+        Some(creator_asset_amount),
+        Some(AssetId::from(*creator_asset_id)),
+        None,
+    );
+
+    let receiver_contract_id = ContractId::new(receiver_asset_id.into());
+
+    let result = creator
+        .escrow
+        .methods()
+        .create(
+            Identity::Address(receiver.wallet.address().into()),
+            receiver_contract_id,
+            requested_amount,
+        )
+        .tx_params(tx_params)
+        .call_params(call_params)
+        .call()
+        .await
+        .unwrap();
+
+    assert_eq!(result.value, 0);
 }
