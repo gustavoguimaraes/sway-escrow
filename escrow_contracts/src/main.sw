@@ -13,7 +13,7 @@ use std::{
     contract_id::ContractId,
     identity::Identity,
     storage::StorageMap,
-    token::transfer,
+    token::transfer_to_address,
 };
 
 storage {
@@ -21,7 +21,7 @@ storage {
     escrow_index: u64 = 0,
 }
 
-pub enum Error {
+pub enum EscrowError {
     IncorrectEscrowState: (),
     IncorrectAssetReceived: (),
     IncorrectReceiver: (),
@@ -57,33 +57,48 @@ impl escrow for Contract {
     fn accept(escrow_id: u64) {
         let mut escrow_instance = storage.escrows.get(escrow_id);
 
-        require(escrow_instance.status == Status::Uninitialized, Error::IncorrectEscrowState);
+        require(escrow_instance.status == Status::Uninitialized, EscrowError::IncorrectEscrowState);
 
-        require(escrow_instance.requested_asset_id == msg_asset_id(), Error::IncorrectAssetReceived);
+        require(escrow_instance.requested_asset_id == msg_asset_id(), EscrowError::IncorrectAssetReceived);
 
-        require(escrow_instance.requested_asset_amount <= msg_amount(), Error::InsufficientAmountReceived);
+        require(escrow_instance.requested_asset_amount <= msg_amount(), EscrowError::InsufficientAmountReceived);
 
-        require(escrow_instance.receiver == msg_sender().unwrap(), Error::IncorrectReceiver);
+        require(escrow_instance.receiver == msg_sender().unwrap(), EscrowError::IncorrectReceiver);
 
         escrow_instance.status = Status::Completed;
 
         storage.escrows.insert(escrow_id, escrow_instance);
 
-        transfer(escrow_instance.requested_asset_amount, escrow_instance.requested_asset_id, escrow_instance.creator);
+        let creator_address = match escrow_instance.creator {
+            Identity::Address(address) => address,
+            _ => revert(0),
+        };
+        transfer_to_address(escrow_instance.requested_asset_amount, escrow_instance.requested_asset_id, creator_address);
 
-        transfer(escrow_instance.creator_asset_amount, escrow_instance.creator_asset_id, escrow_instance.receiver);
+        let receiver_address = match escrow_instance.receiver {
+            Identity::Address(address) => address,
+            _ => revert(0),
+        };
+
+        // transfer_to_address means transfer amount of coin of given type `asset_id` and send them to the address `to`
+        transfer_to_address(escrow_instance.creator_asset_amount, escrow_instance.creator_asset_id, receiver_address);
     }
 
     #[storage(read, write)]
     fn revert(escrow_id: u64) {
         let mut escrow_instance = storage.escrows.get(escrow_id);
 
-        require(escrow_instance.status == Status::Uninitialized, Error::IncorrectEscrowState);
+        require(escrow_instance.status == Status::Uninitialized, EscrowError::IncorrectEscrowState);
 
-        require(escrow_instance.creator == msg_sender().unwrap(), Error::IncorrectReceiver);
+        require(escrow_instance.creator == msg_sender().unwrap(), EscrowError::IncorrectReceiver);
         escrow_instance.status = Status::Reverted;
         storage.escrows.insert(escrow_id, escrow_instance);
 
-        transfer(escrow_instance.creator_asset_amount, escrow_instance.creator_asset_id, escrow_instance.creator);
+        let creator_address = match escrow_instance.creator {
+            Identity::Address(address) => address,
+            _ => revert(0),
+        };
+
+        transfer_to_address(escrow_instance.creator_asset_amount, escrow_instance.creator_asset_id, creator_address);
     }
 }
