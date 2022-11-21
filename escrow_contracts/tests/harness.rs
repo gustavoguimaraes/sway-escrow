@@ -109,6 +109,29 @@ async fn setup_tests() -> (
     );
 }
 
+async fn get_contract_instance(wallet: WalletUnlocked) -> (Escrow, ContractId) {
+    // Launch a local network and deploy the contract
+
+    let escrow_contract_id = Contract::deploy(
+        "./out/debug/escrow.bin",
+        &wallet,
+        TxParameters::default(),
+        StorageConfiguration::default(),
+    )
+    .await
+    .unwrap();
+
+    let instance = Escrow::new(escrow_contract_id.clone(), wallet.clone());
+
+    return (instance, escrow_contract_id.into());
+}
+
+#[tokio::test]
+async fn can_initialize_contract() {
+    let wallet = launch_provider_and_get_wallet().await;
+    let (_, _) = get_contract_instance(wallet).await;
+}
+
 #[tokio::test]
 async fn can_initialize_escrow() {
     let (_, creator, receiver, _, creator_asset_id, receiver_asset_id) = setup_tests().await;
