@@ -342,3 +342,10 @@ async fn can_accept_escrow() {
 
     assert_eq!(result, requested_amount);
 }
+
+#[tokio::test]
+async fn can_revert_escrow() {
+    let (_, creator, receiver, _, creator_asset_id, receiver_asset_id) = setup_tests().await;
+
+    
+}
