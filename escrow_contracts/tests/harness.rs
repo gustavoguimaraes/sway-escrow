@@ -347,5 +347,63 @@ async fn can_accept_escrow() {
 async fn can_revert_escrow() {
     let (_, creator, receiver, _, creator_asset_id, receiver_asset_id) = setup_tests().await;
 
-    
+    let creator_asset_amount = 100;
+    let requested_amount = 100;
+    let creator_asset_id = Some(AssetId::from(*creator_asset_id)).unwrap();
+    let initial_balance = creator
+        .wallet
+        .get_asset_balance(&creator_asset_id)
+        .await
+        .unwrap();
+
+    let create_tx_params = TxParameters::new(None, Some(1_000_000), None);
+    let create_call_params =
+        CallParameters::new(Some(creator_asset_amount), Some(creator_asset_id), None);
+
+    let receiver_contract_id = ContractId::new(receiver_asset_id.into());
+
+    let create_result = creator
+        .escrow
+        .methods()
+        .create(
+            Identity::Address(receiver.wallet.address().into()),
+            receiver_contract_id,
+            requested_amount,
+        )
+        .tx_params(create_tx_params)
+        .call_params(create_call_params)
+        .call()
+        .await
+        .unwrap();
+
+    assert_eq!(create_result.value, 0);
+
+    let current_balance = creator
+        .wallet
+        .get_asset_balance(&creator_asset_id)
+        .await
+        .unwrap();
+
+    assert_eq!(
+        current_balance,
+        initial_balance.checked_sub(creator_asset_amount).unwrap()
+    );
+
+    // call revert
+    creator
+        .escrow
+        .methods()
+        .revert(create_result.value)
+        .append_variable_outputs(1)
+        .call()
+        .await
+        .unwrap();
+
+    let current_balance = creator
+        .wallet
+        .get_asset_balance(&creator_asset_id)
+        .await
+        .unwrap();
+
+    assert_eq!(current_balance, initial_balance);
 }
